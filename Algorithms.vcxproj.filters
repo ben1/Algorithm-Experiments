@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="targetver.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="Timer.h" />
+    <ClInclude Include="MergeSort.h" />
+    <ClInclude Include="MPMCQueue.h" />
+    <ClInclude Include="JobScheduler.h" />
+    <ClInclude Include="GetMostCommonLetter.h" />
+    <ClInclude Include="ComputePrimes.h" />
+    <ClInclude Include="ReverseWords.h" />
+    <ClInclude Include="Scoped.h" />
+    <ClInclude Include="ScopedArray.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="MergeSort.cpp" />
+    <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="MPMCQueue.cpp" />
+    <ClCompile Include="JobScheduler.cpp" />
+    <ClCompile Include="Main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" />
+  </ItemGroup>
+</Project>
