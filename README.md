@@ -12,6 +12,7 @@ The framework is extremely simple, consisting of a few utility classes:
 ## Algorithms
 
 ### Merge Sort
+
 A straightforward implementation was done first, and then several optimizations attempted.
 With identical random data input of 100 million integers, the results are: 
 
@@ -21,8 +22,12 @@ With identical random data input of 100 million integers, the results are:
     | Simple                     |         11.178 |
     | Unrolled                   |         10.599 |
     | UnrolledMemcpy             |          9.052 |
-    | Multi-threaded (8 threads) |          2.377 |
+    | Multi-threaded (2 threads) |          4.902 |
+    | Multi-threaded (4 threads) |          2.855 |
+    | Multi-threaded (8 threads) |          1.995 |
     +----------------------------+----------------+
+
+The multithreaded version splits the data to sort into a number of lists equal to the number of threads. Each thread sorts their list independently, and then the sorted lists are merged two into one. The merging is done in parallel too. But rather than use 4 threads to merge 8 lists into 4, we use 8! This is done by getting a thread to work to fill the destination list from the start and another to fill it from the end. This doubles the number of threads we can use for merging part.
 
 ### Compute Primes
 The most basic algorithm is O(n^2) so it is very slow (41 seconds to find 50000 primes).
@@ -42,7 +47,7 @@ It takes 227 milliseconds to reverse the words in a string of 100 million charac
 ## TODO
 
 * Add more comments
-* Make the multithreaded scheduler nicer to use!
+* Make the multithreaded scheduler nicer to use.
 * Make the threads wait on a signal when inactive
 * Keep track of what jobs have completed which parts of the sort by using atomic max / min
 

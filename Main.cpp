@@ -41,7 +41,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
     // PRIME NUMBERS
     {
-        int maxPrimes = 50000;
+        int maxPrimes = 10000;
         ScopedArray<int> primes(new int[maxPrimes]);
 
         timer.Reset();
@@ -68,16 +68,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
         MergeSort<int> mergeSorter(dataLength);
 
-        // Test MergeSort::Sort
-        memcpy(testData, originalData, sizeof(int) * dataLength);
-        timer.Reset();
-        mergeSorter.Sort(testData, dataLength);
-        ms = 1000.0f * timer.Time();
-        printf("Sort time %f ms\n", ms);
-        bool success = VerifyOrder(testData, dataLength);
-        printf("Sort %s\n", (success ? "success" : "FAIL"));
-
-        // test multithreaded sort
+        // Test MergeSort::SortMT
         {
             memcpy(testData, originalData, sizeof(int) * dataLength);
 
@@ -88,12 +79,21 @@ int _tmain(int argc, _TCHAR* argv[])
             JobScheduler jobScheduler(NUM_THREADS_FOR_SORTING - 1, MAX_JOBS_IN_QUEUE);
 
             timer.Reset();
-            mergeSorter.SortSimpleMT(testData, dataLength, jobScheduler);
+            mergeSorter.SortMT(testData, dataLength, jobScheduler);
             ms = 1000.0f * timer.Time();
-            printf("SortSimpleMT time %f ms\n", ms);
+            printf("SortMT time (%d threads) %f ms\n", NUM_THREADS_FOR_SORTING, ms);
             bool success = VerifyOrder(testData, dataLength);
-            printf("SortSimpleMT %s\n", (success ? "success" : "FAIL"));
+            printf("SortMT %s\n", (success ? "success" : "FAIL"));
         }
+
+        // Test MergeSort::SortUnrolledMemcpy
+        memcpy(testData, originalData, sizeof(int) * dataLength);
+        timer.Reset();
+        mergeSorter.SortUnrolledMemcpy(testData, dataLength);
+        ms = 1000.0f * timer.Time();
+        printf("SortUnrolledMemcpy time %f ms\n", ms);
+        bool success = VerifyOrder(testData, dataLength);
+        printf("SortUnrolledMemcpy %s\n", (success ? "success" : "FAIL"));
 
         // Test MergeSort::SortSimpleUnrolled
         memcpy(testData, originalData, sizeof(int) * dataLength);

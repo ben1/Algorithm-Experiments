@@ -27,7 +27,8 @@ struct MergeContext
     T* m_buffer2; // dest left array
     int m_right; // offset to the right array (left array has offset 0 and ends just before the right array)
     int m_end; // offset to the end of the right array
-    volatile bool m_working;
+    volatile bool m_workingFirst;
+    volatile bool m_workingSecond;
 };
 
 
@@ -49,25 +50,18 @@ public:
 
     // Sorts the input buffer, which contains the given number of T items.
     // Returns false if the scratch buffer was not big enough.
-    bool Sort(T* a_input, int a_length);
+    bool SortUnrolledMemcpy(T* a_input, int a_length);
 
-    // The same as Sort() but without a memcpy optimization
+    // The same as SortUnrolledMemcpy() but without a memcpy optimization
     bool SortSimpleUnrolled(T* a_input, int a_length);
 
     // The same as SortUnrolled() but doesn't unroll the first iteration of the main loop
     bool SortSimple(T* a_input, int a_length);
 
-    // The same as SortSimple() but is multithreaded
-    bool SortSimpleMT(T* a_input, int a_length, JobScheduler& a_jobScheduler);
+    // The same as SortSimpleUnrolled() but is multithreaded.
+    bool SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler);
 
 private:
-
-    // Merges two arrays from the source buffer (indexed by a_left and a_right) into the destination buffer.
-    // a_right - a_left is the count of the left array and a_end - a_right is the count of the right array.
-    // The sorted result in a_destinationBuffer starts at a_left and has a count of a_end - a_left.
-    // We assume a precondition that the left buffer always has at least one item.
-    // Optimizes by using memcpy to copy across the remaining source array when the other array is empty.
-    inline void Merge(T* a_sourceBuffer, T* a_destinationBuffer, int a_left, int a_right, int a_end);
 
     // Returns false if a large enough buffer cannot be allocated.
     bool EnsureBufferIsLargeEnough(int a_length);
@@ -78,7 +72,62 @@ private:
 };
 
 
-// The same as Merge() but more straightforward and not quite as fast 
+// Merges two arrays from the source buffer (indexed by a_left and a_right) into the destination buffer.
+// a_right - a_left is the count of the left array and a_end - a_right is the count of the right array.
+// The sorted result in a_destinationBuffer starts at a_left and has a count of a_end - a_left.
+// We assume a precondition that the left buffer always has at least one item.
+// Optimizes by using memcpy to copy across the remaining source array when the other array is empty.
+template<class T>
+inline void MergeMemcpy(T* a_sourceBuffer, T* a_destinationBuffer, int a_left, int a_right, int a_end)
+{
+    a_destinationBuffer += a_left;
+    T* left = a_sourceBuffer + a_left;
+    T* right = a_sourceBuffer + a_right;
+    T* endLeft = right;
+    T* endRight = a_sourceBuffer + a_end;
+
+    // We assume a precondition that the left buffer always has at least one item
+    assert(left < endLeft);
+
+    // There may be nothing in the right input buffer so check this case first.
+    if(right >= endRight)
+    {
+        memcpy(a_destinationBuffer, left, (char*)endLeft - (char*)left);
+        return;
+    }
+
+    while(true)
+    {
+        // compare left and right input buffers and copy the smaller value to the destination buffer.
+        if(*left < *right)
+        {
+            *a_destinationBuffer = *left;
+            a_destinationBuffer++;
+            left++;
+            // if we have exhausted the left buffer, copy the remainder of the right and return
+            if(left >= endLeft)
+            {
+                memcpy(a_destinationBuffer, right, (char*)endRight - (char*)right);
+                return;
+            }
+        }
+        else
+        {
+            *a_destinationBuffer = *right;
+            a_destinationBuffer++;
+            right++;
+            // if we have exhausted the right buffer, copy the remainder of the left and return
+            if(right >= endRight)
+            {
+                memcpy(a_destinationBuffer, left, (char*)endLeft - (char*)left);
+                return;
+            }
+        }
+    }
+}
+
+
+// Functions the same as MergeMemcpy() but more straightforward and not quite as fast.
 template<class T>
 inline void MergeSimple(T* a_sourceBuffer, T* a_destinationBuffer, int a_left, int a_right, int a_end)
 {
@@ -107,6 +156,71 @@ inline void MergeSimple(T* a_sourceBuffer, T* a_destinationBuffer, int a_left, i
         a_destinationBuffer++;
     }
     while(a_destinationBuffer < destinationBufferEnd);
+}
+
+
+// The same as MergeSimple() but only merges into the first half of the destination buffer.
+// Used for the multi-threaded merge so that 2 threads can work on a single merge.
+template<class T>
+inline void MergeFirst(T* a_sourceBuffer, T* a_destinationBuffer, int a_left, int a_right, int a_end)
+{
+    T* left = a_sourceBuffer + a_left;
+    T* right = a_sourceBuffer + a_right;
+    T* endLeft = right;
+    T* endRight = a_sourceBuffer + a_end;
+    T* destinationBufferEnd = a_destinationBuffer + a_left + ((a_end - a_left + 1) >> 1); // only fill the first half, rounded up
+    a_destinationBuffer += a_left;
+
+    // We assume a precondition that the left buffer always has at least one item
+    assert(left < endLeft);
+
+    do
+    {
+        if(left < endLeft && (right >= endRight || *left < *right))
+        {
+            *a_destinationBuffer = *left;
+            left++;
+        }
+        else
+        {
+            *a_destinationBuffer = *right;
+            right++;
+        }
+        a_destinationBuffer++;
+    }
+    while(a_destinationBuffer < destinationBufferEnd);
+}
+
+
+// The same as MergeFirst() but merges from the other end of the lists.
+// Used for the multi-threaded merge so that 2 threads can work on a single merge.
+template<class T>
+inline void MergeSecond(T* a_sourceBuffer, T* a_destinationBuffer, int a_left, int a_right, int a_end)
+{
+    // all pointers are set up to start from the end of the buffers and iterate towards the start.
+    T* left = a_sourceBuffer + a_right - 1;
+    T* right = a_sourceBuffer + a_end - 1;
+    T* endLeft = a_sourceBuffer - 1;
+    T* endRight = left;
+    // the destination end is one less that the end position of MergeFirst()
+    T* destinationBufferEnd = a_destinationBuffer + ((a_end - a_left + 1) >> 1) - 1;
+    a_destinationBuffer += a_end - 1; // start from last entry
+
+    // condition must go at the front for the case where the list only had one entry.
+    while(a_destinationBuffer > destinationBufferEnd)
+    {
+        if(left > endLeft && (right <= endRight || *left > *right))
+        {
+            *a_destinationBuffer = *left;
+            left--;
+        }
+        else
+        {
+            *a_destinationBuffer = *right;
+            right--;
+        }
+        a_destinationBuffer--;
+    }
 }
 
 
@@ -152,7 +266,7 @@ MergeSort<T>::~MergeSort()
 
 
 template<class T>
-bool MergeSort<T>::Sort(T* a_input, int a_length)
+bool MergeSort<T>::SortUnrolledMemcpy(T* a_input, int a_length)
 {
     // skip the trivial case
     if(a_length < 2)
@@ -201,7 +315,7 @@ bool MergeSort<T>::Sort(T* a_input, int a_length)
     {
         for(int i = 0; i < a_length; i += (width << 1))
         {
-            Merge(buffer1, buffer2, i, std::min(i + width, a_length), std::min(i + (width << 1), a_length));
+            MergeMemcpy(buffer1, buffer2, i, std::min(i + width, a_length), std::min(i + (width << 1), a_length));
         }
         std::swap(buffer1, buffer2);
     }
@@ -310,11 +424,37 @@ void SortJob(void* a_context)
 {
     SortContext<T>* context = (SortContext<T>*) a_context;
 
-    for(int width = 1; width < context->m_dataLength; width <<= 1)
+    // unroll the first iteration because we can make some shortcuts
+    for(int i = 0; i < context->m_dataLength; i += 2)
+    {
+        if(i + 1 < context->m_dataLength)
+        {
+            // compare left and right
+            if(context->m_buffer1[i] < context->m_buffer1[i + 1])
+            {
+                // order is correct, so copy both elements
+                memcpy(context->m_buffer2 + i, context->m_buffer1 + i, sizeof(T) << 1);
+            }
+            else
+            {
+                // swap as we copy
+                context->m_buffer2[i] = context->m_buffer1[i + 1];
+                context->m_buffer2[i + 1] = context->m_buffer1[i];
+            }
+        }
+        else
+        {
+            // just copy the left
+            context->m_buffer2[i] = context->m_buffer1[i];
+        }
+    }
+    std::swap(context->m_buffer1, context->m_buffer2);
+
+    for(int width = 2; width < context->m_dataLength; width <<= 1)
     {
         for(int i = 0; i < context->m_dataLength; i += (width << 1))
         {
-            MergeSimple(context->m_buffer1, context->m_buffer2, i, std::min(i + width, context->m_dataLength), std::min(i + (width << 1), context->m_dataLength));
+            MergeMemcpy(context->m_buffer1, context->m_buffer2, i, std::min(i + width, context->m_dataLength), std::min(i + (width << 1), context->m_dataLength));
         }
         std::swap(context->m_buffer1, context->m_buffer2);
     }
@@ -324,19 +464,31 @@ void SortJob(void* a_context)
 
 
 template<class T>
-void MergeJob(void* a_context)
+void MergeFirstJob(void* a_context)
 {
     MergeContext<T>* context = (MergeContext<T>*) a_context;
 
-    MergeSimple(context->m_buffer1, context->m_buffer2, 0, context->m_right, context->m_end);
+    MergeFirst(context->m_buffer1, context->m_buffer2, 0, context->m_right, context->m_end);
     std::swap(context->m_buffer1, context->m_buffer2);
 
-    context->m_working = false;
+    context->m_workingFirst = false;
 }
 
 
 template<class T>
-bool MergeSort<T>::SortSimpleMT(T* a_input, int a_length, JobScheduler& a_jobScheduler)
+void MergeSecondJob(void* a_context)
+{
+    MergeContext<T>* context = (MergeContext<T>*) a_context;
+
+    MergeSecond(context->m_buffer1, context->m_buffer2, 0, context->m_right, context->m_end);
+    // don't need to swap the buffers because we ignore the buffers coming from the second jobs
+
+    context->m_workingSecond = false;
+}
+
+
+template<class T>
+bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler)
 {
 
     // use a single thread for small sorts
@@ -344,7 +496,7 @@ bool MergeSort<T>::SortSimpleMT(T* a_input, int a_length, JobScheduler& a_jobSch
     int totalNumThreads = a_jobScheduler.NumThreads() + 1; // including this thread
     if(a_length < totalNumThreads * minItemsPerThread)
     {
-        return Sort(a_input, a_length);
+        return SortUnrolledMemcpy(a_input, a_length);
     }
 
     if(!EnsureBufferIsLargeEnough(a_length))
@@ -409,30 +561,46 @@ bool MergeSort<T>::SortSimpleMT(T* a_input, int a_length, JobScheduler& a_jobSch
         mergeContext[i].m_buffer1 = sortContext[i].m_buffer1;
         mergeContext[i].m_buffer2 = sortContext[i].m_buffer2;
         mergeContext[i].m_right = sortContext[i].m_dataLength;
-        mergeContext[i].m_end = mergeContext[i].m_right;
+        mergeContext[i].m_end = sortContext[i].m_dataLength;
     }
 
-    int numMerges = a_jobScheduler.NumThreads();
     int totalMerges = totalNumThreads;
     while(totalMerges > 1)
     {
-        numMerges = totalMerges >> 1;
+        // there must be an even number of merges. Any left-over list can't be merged this iteration.
+        int numMerges = totalMerges >> 1;
         totalMerges = (totalMerges + 1) >> 1;
 
         for(int i = 0; i < totalMerges; ++i)
         {
             if(i < numMerges)
             {
-                mergeContext[i].m_working = true;
+                // take the results of the previous iteration and create new merge contexts by merging 2 together.
+                mergeContext[i].m_workingFirst = true;
+                mergeContext[i].m_workingSecond = true;
                 mergeContext[i].m_buffer1 = mergeContext[i << 1].m_buffer1;
                 mergeContext[i].m_buffer2 = mergeContext[i << 1].m_buffer2;
                 mergeContext[i].m_right = mergeContext[i << 1].m_end;
                 mergeContext[i].m_end = mergeContext[i].m_right + mergeContext[(i << 1) + 1].m_end;
 
-                Job job;
-                job.m_data = &mergeContext[i];
-                job.m_function = &MergeJob<T>;
-                a_jobScheduler.SubmitJob(job);
+                // submit 2 jobs for the merge context, each working from the other end of the list
+                {
+                    Job job;
+                    job.m_data = &mergeContext[i];
+                    job.m_function = &MergeFirstJob<T>;
+                    a_jobScheduler.SubmitJob(job);
+                }
+                if((i << 1) + 1 < a_jobScheduler.NumThreads())
+                {
+                    Job job;
+                    job.m_data = &mergeContext[i];
+                    job.m_function = &MergeSecondJob<T>;
+                    a_jobScheduler.SubmitJob(job);
+                }
+                else
+                {
+                    MergeSecondJob<T>(&mergeContext[i]);
+                }
             }
             else
             {
@@ -440,7 +608,7 @@ bool MergeSort<T>::SortSimpleMT(T* a_input, int a_length, JobScheduler& a_jobSch
                 mergeContext[i].m_buffer1 = mergeContext[i << 1].m_buffer1;
                 mergeContext[i].m_buffer2 = mergeContext[i << 1].m_buffer2;
                 mergeContext[i].m_right = mergeContext[i << 1].m_end;
-                mergeContext[i].m_end = mergeContext[i].m_right;
+                mergeContext[i].m_end = mergeContext[i << 1].m_end;
             }
         }
 
@@ -451,7 +619,7 @@ bool MergeSort<T>::SortSimpleMT(T* a_input, int a_length, JobScheduler& a_jobSch
             stillWorking = false;
             for(int i = 0; i < numMerges; ++i)
             {
-                if(mergeContext[i].m_working)
+                if(mergeContext[i].m_workingFirst || mergeContext[i].m_workingSecond)
                 {
                     stillWorking = true;
                     JobScheduler::YieldCurrentThread();
@@ -469,56 +637,6 @@ bool MergeSort<T>::SortSimpleMT(T* a_input, int a_length, JobScheduler& a_jobSch
     }
 
     return true;
-}
-
-
-template<class T>
-inline void  MergeSort<T>::Merge(T* a_sourceBuffer, T* a_destinationBuffer, int a_left, int a_right, int a_end)
-{
-    a_destinationBuffer += a_left;
-    T* left = a_sourceBuffer + a_left;
-    T* right = a_sourceBuffer + a_right;
-    T* endLeft = right;
-    T* endRight = a_sourceBuffer + a_end;
-
-    // We assume a precondition that the left buffer always has at least one item
-    assert(left < endLeft);
-
-    // There may be nothing in the right input buffer so check this case first.
-    if(right >= endRight)
-    {
-        memcpy(a_destinationBuffer, left, (char*)endLeft - (char*)left);
-        return;
-    }
-
-    while(true)
-    {
-        // compare left and right input buffers and copy the smaller value to the destination buffer.
-        if(*left < *right)
-        {
-            *a_destinationBuffer = *left;
-            a_destinationBuffer++;
-            left++;
-            // if we have exhausted the left buffer, copy the remainder of the right and return
-            if(left >= endLeft)
-            {
-                memcpy(a_destinationBuffer, right, (char*)endRight - (char*)right);
-                return;
-            }
-        }
-        else
-        {
-            *a_destinationBuffer = *right;
-            a_destinationBuffer++;
-            right++;
-            // if we have exhausted the right buffer, copy the remainder of the left and return
-            if(right >= endRight)
-            {
-                memcpy(a_destinationBuffer, left, (char*)endLeft - (char*)left);
-                return;
-            }
-        }
-    }
 }
 
 
