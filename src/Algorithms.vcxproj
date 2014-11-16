@@ -80,8 +80,6 @@
     <ClInclude Include="MergeSort.h" />
     <ClInclude Include="MPMCQueue.h" />
     <ClInclude Include="ReverseWords.h" />
-    <ClInclude Include="Scoped.h" />
-    <ClInclude Include="ScopedArray.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Timer.h" />

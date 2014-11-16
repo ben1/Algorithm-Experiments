@@ -1,12 +1,13 @@
 #ifndef _MergeSort_h_
 #define _MergeSort_h_
 
+#include <algorithm>
 #include <assert.h>
 #include <intrin.h>
 #include <new>
+#include <memory>
 #include <xutility>
 
-#include "ScopedArray.h"
 #include "JobScheduler.h"
 
 
@@ -511,7 +512,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler
 
     // First divide the list into a number of lists equal to the number of threads and sort them.
     int maxItemsPerThread = (a_length + totalNumThreads - 1) / totalNumThreads;
-    ScopedArray<SortContext<T> > sortContext(new SortContext<T>[totalNumThreads]);
+    std::unique_ptr<SortContext<T>[]> sortContext(new SortContext<T>[totalNumThreads]);
 
     // Dispatch work to threads
     int itemsDispatched = 0;
@@ -555,7 +556,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler
     while(stillWorking);
 
     // copy sorted contexts into merge contexts
-    ScopedArray<MergeContext<T> > mergeContext(new MergeContext<T>[totalNumThreads]);
+	std::unique_ptr<MergeContext<T>[]> mergeContext(new MergeContext<T>[totalNumThreads]);
     for(int i = 0; i < totalNumThreads; ++i)
     {
         mergeContext[i].m_buffer1 = sortContext[i].m_buffer1;

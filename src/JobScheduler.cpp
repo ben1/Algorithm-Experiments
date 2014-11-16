@@ -41,7 +41,7 @@ JobScheduler::JobScheduler(int a_numThreads, int a_maxJobsInQueue)
     for (int i = 0; i < m_numThreads; ++i)
     {
         m_contexts[i].m_exit = false;
-        m_contexts[i].m_queue = m_jobQueue;
+        m_contexts[i].m_queue = m_jobQueue.get();
         m_threads[i] = (HANDLE)_beginthreadex(0, 0, worker_thread_func, &m_contexts[i], 0, 0);
     }
 }

@@ -1,8 +1,7 @@
 #ifndef _JobScheduler_h_
 #define _JobScheduler_h_
 
-#include"Scoped.h"
-#include"ScopedArray.h"
+#include <memory>
 
 
 struct WorkerContext;
@@ -43,9 +42,9 @@ public:
 private:
 
     int m_numThreads;
-    Scoped<mpmc_bounded_queue<Job> > m_jobQueue;
-    ScopedArray<void*> m_threads;
-    ScopedArray<WorkerContext> m_contexts;
+    std::unique_ptr<mpmc_bounded_queue<Job> > m_jobQueue;
+    std::unique_ptr<void*[]> m_threads;
+    std::unique_ptr<WorkerContext[]> m_contexts;
 };
 
 #endif

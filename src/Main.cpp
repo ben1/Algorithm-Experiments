@@ -3,13 +3,13 @@
 
 #include "stdafx.h"
 
+#include <memory>
 #include <stdlib.h>
 
 #ifdef _DEBUG
 #include <vld.h>
 #endif
 
-#include "ScopedArray.h"
 #include "ComputePrimes.h"
 #include "MergeSort.h"
 #include "Timer.h"
@@ -42,15 +42,15 @@ int _tmain(int argc, _TCHAR* argv[])
     // PRIME NUMBERS
     {
         int maxPrimes = 10000;
-        ScopedArray<int> primes(new int[maxPrimes]);
+        std::unique_ptr<int[]> primes(new int[maxPrimes]);
 
         timer.Reset();
-        ComputePrimesSimple(primes, maxPrimes);
+        ComputePrimesSimple(primes.get(), maxPrimes);
         ms = 1000.0f * timer.Time();
         printf("Computed %d primes Simply in %f ms\n", maxPrimes, ms);
 
         timer.Reset();
-        ComputePrimesFast(primes, maxPrimes);
+        ComputePrimesFast(primes.get(), maxPrimes);
         ms = 1000.0f * timer.Time();
         printf("Computed %d primes Fast in %f ms\n", maxPrimes, ms);
     }
@@ -59,8 +59,8 @@ int _tmain(int argc, _TCHAR* argv[])
     {
         // Prepare data to sort. We use the same input data for each sort test.
         const int dataLength = 100000001;
-        ScopedArray<int> originalData(new int[dataLength]);
-        ScopedArray<int> testData(new int[dataLength]);
+        std::unique_ptr<int[]> originalData(new int[dataLength]);
+        std::unique_ptr<int[]> testData(new int[dataLength]);
         for(int i = 0; i < dataLength; ++i)
         {
             originalData[i] = rand();
@@ -70,7 +70,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
         // Test MergeSort::SortMT
         {
-            memcpy(testData, originalData, sizeof(int) * dataLength);
+            memcpy(testData.get(), originalData.get(), sizeof(int) * dataLength);
 
             // Create queue and threads for workers (we wil use our main thread too, so create one fewer worker).
             // This is scoped so that threads cease when test is over.
@@ -79,45 +79,45 @@ int _tmain(int argc, _TCHAR* argv[])
             JobScheduler jobScheduler(NUM_THREADS_FOR_SORTING - 1, MAX_JOBS_IN_QUEUE);
 
             timer.Reset();
-            mergeSorter.SortMT(testData, dataLength, jobScheduler);
+            mergeSorter.SortMT(testData.get(), dataLength, jobScheduler);
             ms = 1000.0f * timer.Time();
             printf("SortMT time (%d threads) %f ms\n", NUM_THREADS_FOR_SORTING, ms);
-            bool success = VerifyOrder(testData, dataLength);
+            bool success = VerifyOrder(testData.get(), dataLength);
             printf("SortMT %s\n", (success ? "success" : "FAIL"));
         }
 
         // Test MergeSort::SortUnrolledMemcpy
-        memcpy(testData, originalData, sizeof(int) * dataLength);
+        memcpy(testData.get(), originalData.get(), sizeof(int) * dataLength);
         timer.Reset();
-        mergeSorter.SortUnrolledMemcpy(testData, dataLength);
+		mergeSorter.SortUnrolledMemcpy(testData.get(), dataLength);
         ms = 1000.0f * timer.Time();
         printf("SortUnrolledMemcpy time %f ms\n", ms);
-        bool success = VerifyOrder(testData, dataLength);
+		bool success = VerifyOrder(testData.get(), dataLength);
         printf("SortUnrolledMemcpy %s\n", (success ? "success" : "FAIL"));
 
         // Test MergeSort::SortSimpleUnrolled
-        memcpy(testData, originalData, sizeof(int) * dataLength);
+		memcpy(testData.get(), originalData.get(), sizeof(int) * dataLength);
         timer.Reset();
-        mergeSorter.SortSimpleUnrolled(testData, dataLength);
+		mergeSorter.SortSimpleUnrolled(testData.get(), dataLength);
         ms = 1000.0f * timer.Time();
         printf("SortSimpleUnrolled time %f ms\n", ms);
-        success = VerifyOrder(testData, dataLength);
+		success = VerifyOrder(testData.get(), dataLength);
         printf("SortSimpleUnrolled %s\n", (success ? "success" : "FAIL"));
 
         // Test MergeSort::SortSimple
-        memcpy(testData, originalData, sizeof(int) * dataLength);
+		memcpy(testData.get(), originalData.get(), sizeof(int) * dataLength);
         timer.Reset();
-        mergeSorter.SortSimple(testData, dataLength);
+		mergeSorter.SortSimple(testData.get(), dataLength);
         ms = 1000.0f * timer.Time();
         printf("SortSimple time %f ms\n", ms);
-        success = VerifyOrder(testData, dataLength);
+		success = VerifyOrder(testData.get(), dataLength);
         printf("SortSimple %s\n", (success ? "success" : "FAIL"));
     }
 
     // STRINGS
     {
         const int dataLength = 100000001;
-        ScopedArray<char> longString(new char[dataLength]);
+        std::unique_ptr<char[]> longString(new char[dataLength]);
         for(int i = 0; i < dataLength; ++i)
         {
             longString[i] = ' ' + (rand() & 0x3F); // only spaces, letters and some other characters, no zeros
@@ -125,13 +125,13 @@ int _tmain(int argc, _TCHAR* argv[])
         longString[dataLength - 1] = 0; // null terminate
 
         timer.Reset();
-        char commonLetter = GetMostCommonLetter(longString);
+		char commonLetter = GetMostCommonLetter(longString.get());
         ms = 1000.0f * timer.Time();
         printf("GetMostCommonLetter time %f ms\n", ms);
         printf("Letter is %c\n", commonLetter);
 
         timer.Reset();
-        ReverseWords(longString);
+        ReverseWords(longString.get());
         ms = 1000.0f * timer.Time();
         printf("ReverseWords time %f ms\n", ms);
     }
