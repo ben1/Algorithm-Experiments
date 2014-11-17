@@ -5,20 +5,18 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="MergeSort.h" />
-    <ClInclude Include="MPMCQueue.h" />
-    <ClInclude Include="JobScheduler.h" />
     <ClInclude Include="GetMostCommonLetter.h" />
     <ClInclude Include="ComputePrimes.h" />
     <ClInclude Include="ReverseWords.h" />
     <ClInclude Include="Cache.h" />
+    <ClInclude Include="JobQueue.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="MergeSort.cpp" />
     <ClCompile Include="Timer.cpp" />
-    <ClCompile Include="MPMCQueue.cpp" />
-    <ClCompile Include="JobScheduler.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="JobQueue.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

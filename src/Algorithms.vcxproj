@@ -77,9 +77,8 @@
     <ClInclude Include="Cache.h" />
     <ClInclude Include="ComputePrimes.h" />
     <ClInclude Include="GetMostCommonLetter.h" />
-    <ClInclude Include="JobScheduler.h" />
+    <ClInclude Include="JobQueue.h" />
     <ClInclude Include="MergeSort.h" />
-    <ClInclude Include="MPMCQueue.h" />
     <ClInclude Include="ReverseWords.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -87,9 +86,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="JobScheduler.cpp" />
+    <ClCompile Include="JobQueue.cpp" />
     <ClCompile Include="MergeSort.cpp" />
-    <ClCompile Include="MPMCQueue.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

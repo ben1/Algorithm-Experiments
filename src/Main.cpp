@@ -13,7 +13,7 @@
 #include "ComputePrimes.h"
 #include "MergeSort.h"
 #include "Timer.h"
-#include "JobScheduler.h"
+#include "JobQueue.h"
 #include "GetMostCommonLetter.h"
 #include "ReverseWords.h"
 #include "Cache.h"
@@ -76,8 +76,7 @@ int _tmain(int argc, _TCHAR* argv[])
             // Create queue and threads for workers (we wil use our main thread too, so create one fewer worker).
             // This is scoped so that threads cease when test is over.
             const size_t NUM_THREADS_FOR_SORTING = 8;
-            const int MAX_JOBS_IN_QUEUE = 16;
-            JobScheduler jobScheduler(NUM_THREADS_FOR_SORTING - 1, MAX_JOBS_IN_QUEUE);
+			JobQueue jobScheduler(NUM_THREADS_FOR_SORTING - 1);
 
             timer.Reset();
             mergeSorter.SortMT(testData.get(), dataLength, jobScheduler);

@@ -1,14 +1,9 @@
-#ifndef _MergeSort_h_
-#define _MergeSort_h_
+#pragma once
 
-#include <algorithm>
 #include <assert.h>
-#include <intrin.h>
-#include <new>
 #include <memory>
-#include <xutility>
 
-#include "JobScheduler.h"
+#include "JobQueue.h"
 
 
 template<class T>
@@ -60,7 +55,7 @@ public:
     bool SortSimple(T* a_input, int a_length);
 
     // The same as SortSimpleUnrolled() but is multithreaded.
-    bool SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler);
+    bool SortMT(T* a_input, int a_length, JobQueue& a_jobQueue);
 
 private:
 
@@ -489,12 +484,12 @@ void MergeSecondJob(void* a_context)
 
 
 template<class T>
-bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler)
+bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
 {
 
     // use a single thread for small sorts
     const int minItemsPerThread = 256;
-    int totalNumThreads = a_jobScheduler.NumThreads() + 1; // including this thread
+	int totalNumThreads = a_jobQueue.NumThreads() + 1; // including this thread
     if(a_length < totalNumThreads * minItemsPerThread)
     {
         return SortUnrolledMemcpy(a_input, a_length);
@@ -525,12 +520,12 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler
         sortContext[i].m_dataLength = itemsForThread;
         itemsDispatched += itemsForThread;
 
-        if(i < a_jobScheduler.NumThreads())
+        if(i < a_jobQueue.NumThreads())
         {
             Job job;
             job.m_data = &sortContext[i];
             job.m_function = &SortJob<T>;
-            a_jobScheduler.SubmitJob(job);
+            a_jobQueue.SubmitJob(job);
         }
         else
         {
@@ -543,12 +538,11 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler
     do
     {
         stillWorking = false;
-        for(int i = 0; i < a_jobScheduler.NumThreads(); ++i)
+        for(int i = 0; i < a_jobQueue.NumThreads(); ++i)
         {
             if(sortContext[i].m_working)
             {
                 stillWorking = true;
-                JobScheduler::YieldCurrentThread();
                 break;
             }
         }
@@ -589,14 +583,14 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler
                     Job job;
                     job.m_data = &mergeContext[i];
                     job.m_function = &MergeFirstJob<T>;
-                    a_jobScheduler.SubmitJob(job);
+                    a_jobQueue.SubmitJob(job);
                 }
-                if((i << 1) + 1 < a_jobScheduler.NumThreads())
+                if((i << 1) + 1 < a_jobQueue.NumThreads())
                 {
                     Job job;
                     job.m_data = &mergeContext[i];
                     job.m_function = &MergeSecondJob<T>;
-                    a_jobScheduler.SubmitJob(job);
+                    a_jobQueue.SubmitJob(job);
                 }
                 else
                 {
@@ -623,7 +617,6 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobScheduler& a_jobScheduler
                 if(mergeContext[i].m_workingFirst || mergeContext[i].m_workingSecond)
                 {
                     stillWorking = true;
-                    JobScheduler::YieldCurrentThread();
                     break;
                 }
             }
@@ -669,4 +662,3 @@ bool MergeSort<T>::EnsureBufferIsLargeEnough(int a_length)
 }
 
 
-#endif
