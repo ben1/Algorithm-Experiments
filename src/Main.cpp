@@ -16,6 +16,7 @@
 #include "JobScheduler.h"
 #include "GetMostCommonLetter.h"
 #include "ReverseWords.h"
+#include "Cache.h"
 
 
 // function to verify the contents of an array are sorted in ascending order
@@ -41,7 +42,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
     // PRIME NUMBERS
     {
-        int maxPrimes = 10000;
+        int maxPrimes = 5000;
         std::unique_ptr<int[]> primes(new int[maxPrimes]);
 
         timer.Reset();
@@ -58,7 +59,7 @@ int _tmain(int argc, _TCHAR* argv[])
     // SORTING
     {
         // Prepare data to sort. We use the same input data for each sort test.
-        const int dataLength = 100000001;
+        const int dataLength = 2000001;
         std::unique_ptr<int[]> originalData(new int[dataLength]);
         std::unique_ptr<int[]> testData(new int[dataLength]);
         for(int i = 0; i < dataLength; ++i)
@@ -116,7 +117,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
     // STRINGS
     {
-        const int dataLength = 100000001;
+        const int dataLength = 2000001;
         std::unique_ptr<char[]> longString(new char[dataLength]);
         for(int i = 0; i < dataLength; ++i)
         {
@@ -136,6 +137,34 @@ int _tmain(int argc, _TCHAR* argv[])
         printf("ReverseWords time %f ms\n", ms);
     }
 
+
+	// Cache
+	{
+		Cache<int, int> cache(5);
+
+		for (int i = 0; i < 10; ++i)
+		{
+			cache.put(i, i);
+		}
+		int v = -1;
+		bool success = true;
+		success = !cache.get(0, v) && success;
+		success = !cache.get(1, v) && success;
+		success = !cache.get(2, v) && success;
+		success = !cache.get(3, v) && success;
+		success = !cache.get(4, v) && success;
+		success = cache.get(9, v) && success;
+		success = (v == 9) && success;
+		success = cache.get(5, v) && success;
+		success = (v == 5) && success;
+		cache.put(1, 1);
+		success = !cache.get(6, v) && success;
+		success = cache.get(9, v) && success;
+		success = (v == 9) && success;
+		success = cache.get(5, v) && success;
+		success = (v == 5) && success;
+		printf("Cache %s\n", (success ? "success" : "FAIL"));
+	}
     return 0;
 }
 

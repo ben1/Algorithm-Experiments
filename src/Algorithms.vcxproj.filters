@@ -10,6 +10,7 @@
     <ClInclude Include="GetMostCommonLetter.h" />
     <ClInclude Include="ComputePrimes.h" />
     <ClInclude Include="ReverseWords.h" />
+    <ClInclude Include="Cache.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />

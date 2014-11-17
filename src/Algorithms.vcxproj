@@ -74,6 +74,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Cache.h" />
     <ClInclude Include="ComputePrimes.h" />
     <ClInclude Include="GetMostCommonLetter.h" />
     <ClInclude Include="JobScheduler.h" />
