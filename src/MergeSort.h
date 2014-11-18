@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <memory>
 
+#include "CountdownLatch.h"
 #include "JobQueue.h"
 
 
@@ -12,7 +13,7 @@ struct SortContext
     T* m_buffer1; // source left array
     T* m_buffer2; // dest left array
     int m_dataLength; // total length of the array to be sorted
-    volatile bool m_working;
+	CountdownLatch* m_latch;
 };
 
 
@@ -455,7 +456,10 @@ void SortJob(void* a_context)
         std::swap(context->m_buffer1, context->m_buffer2);
     }
 
-    context->m_working = false;
+	if (context->m_latch)
+	{
+		context->m_latch->Notify();
+	}
 }
 
 
@@ -509,12 +513,14 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
     int maxItemsPerThread = (a_length + totalNumThreads - 1) / totalNumThreads;
     std::unique_ptr<SortContext<T>[]> sortContext(new SortContext<T>[totalNumThreads]);
 
+	CountdownLatch latch(a_jobQueue.NumThreads());
+
     // Dispatch work to threads
     int itemsDispatched = 0;
     for (int i = 0; i < totalNumThreads; ++i)
     {
         int itemsForThread = std::min(maxItemsPerThread, a_length - itemsDispatched);
-        sortContext[i].m_working = true;
+
         sortContext[i].m_buffer1 = buffer1 + itemsDispatched;
         sortContext[i].m_buffer2 = buffer2 + itemsDispatched;
         sortContext[i].m_dataLength = itemsForThread;
@@ -522,6 +528,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
 
         if(i < a_jobQueue.NumThreads())
         {
+			sortContext[i].m_latch = &latch;
             Job job;
             job.m_data = &sortContext[i];
             job.m_function = &SortJob<T>;
@@ -529,25 +536,13 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
         }
         else
         {
+			sortContext[i].m_latch = 0;
             SortJob<T>(&sortContext[i]);
         }
     }
     
     // wait for all sorting to be done
-    bool stillWorking = true;
-    do
-    {
-        stillWorking = false;
-        for(int i = 0; i < a_jobQueue.NumThreads(); ++i)
-        {
-            if(sortContext[i].m_working)
-            {
-                stillWorking = true;
-                break;
-            }
-        }
-    }
-    while(stillWorking);
+	latch.Wait();
 
     // copy sorted contexts into merge contexts
 	std::unique_ptr<MergeContext<T>[]> mergeContext(new MergeContext<T>[totalNumThreads]);
@@ -608,7 +603,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
         }
 
         // wait for all merging to be done
-        stillWorking = true;
+        bool stillWorking = true;
         do
         {
             stillWorking = false;
