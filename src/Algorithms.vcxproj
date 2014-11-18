@@ -74,8 +74,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BigUInt.h" />
     <ClInclude Include="Cache.h" />
     <ClInclude Include="ComputePrimes.h" />
+    <ClInclude Include="ConvertBase.h" />
     <ClInclude Include="GetMostCommonLetter.h" />
     <ClInclude Include="JobQueue.h" />
     <ClInclude Include="MergeSort.h" />
@@ -86,6 +88,7 @@
     <ClInclude Include="Timer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BigUInt.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="JobQueue.cpp" />
     <ClCompile Include="MergeSort.cpp" />

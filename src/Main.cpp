@@ -17,6 +17,7 @@
 #include "GetMostCommonLetter.h"
 #include "ReverseWords.h"
 #include "Cache.h"
+#include "ConvertBase.h"
 
 
 // function to verify the contents of an array are sorted in ascending order
@@ -164,6 +165,16 @@ int _tmain(int argc, _TCHAR* argv[])
 		success = (v == 5) && success;
 		printf("Cache %s\n", (success ? "success" : "FAIL"));
 	}
+
+	{
+		std::string hex;
+		bool success = ConvertBase("255", hex);
+		success = (hex == "FF") && success;
+		success = ConvertBase("586697456878621459", hex) && success;
+		success = (hex == "8245E3A83E01313") && success;
+		printf("ConvertBase %s\n", (success ? "success" : "FAIL"));
+	}
+
     return 0;
 }
 
