@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <memory>
 
-#include "CountdownLatch.h"
+#include "CountLatch.h"
 #include "JobQueue.h"
 
 
@@ -13,7 +13,7 @@ struct SortContext
     T* m_buffer1; // source left array
     T* m_buffer2; // dest left array
     int m_dataLength; // total length of the array to be sorted
-	CountdownLatch* m_latch;
+	CountLatch* m_latch;
 };
 
 
@@ -24,8 +24,7 @@ struct MergeContext
     T* m_buffer2; // dest left array
     int m_right; // offset to the right array (left array has offset 0 and ends just before the right array)
     int m_end; // offset to the end of the right array
-    volatile bool m_workingFirst;
-    volatile bool m_workingSecond;
+	CountLatch* m_latch;
 };
 
 
@@ -456,10 +455,7 @@ void SortJob(void* a_context)
         std::swap(context->m_buffer1, context->m_buffer2);
     }
 
-	if (context->m_latch)
-	{
-		context->m_latch->Notify();
-	}
+	context->m_latch->Notify();
 }
 
 
@@ -471,7 +467,7 @@ void MergeFirstJob(void* a_context)
     MergeFirst(context->m_buffer1, context->m_buffer2, 0, context->m_right, context->m_end);
     std::swap(context->m_buffer1, context->m_buffer2);
 
-    context->m_workingFirst = false;
+	context->m_latch->Notify();
 }
 
 
@@ -483,7 +479,7 @@ void MergeSecondJob(void* a_context)
     MergeSecond(context->m_buffer1, context->m_buffer2, 0, context->m_right, context->m_end);
     // don't need to swap the buffers because we ignore the buffers coming from the second jobs
 
-    context->m_workingSecond = false;
+	context->m_latch->Notify();
 }
 
 
@@ -513,7 +509,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
     int maxItemsPerThread = (a_length + totalNumThreads - 1) / totalNumThreads;
     std::unique_ptr<SortContext<T>[]> sortContext(new SortContext<T>[totalNumThreads]);
 
-	CountdownLatch latch(a_jobQueue.NumThreads());
+	CountLatch latch;
 
     // Dispatch work to threads
     int itemsDispatched = 0;
@@ -524,11 +520,11 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
         sortContext[i].m_buffer1 = buffer1 + itemsDispatched;
         sortContext[i].m_buffer2 = buffer2 + itemsDispatched;
         sortContext[i].m_dataLength = itemsForThread;
+		sortContext[i].m_latch = &latch;
         itemsDispatched += itemsForThread;
 
         if(i < a_jobQueue.NumThreads())
         {
-			sortContext[i].m_latch = &latch;
             Job job;
             job.m_data = &sortContext[i];
             job.m_function = &SortJob<T>;
@@ -536,13 +532,12 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
         }
         else
         {
-			sortContext[i].m_latch = 0;
             SortJob<T>(&sortContext[i]);
         }
     }
     
     // wait for all sorting to be done
-	latch.Wait();
+	latch.Wait(totalNumThreads);
 
     // copy sorted contexts into merge contexts
 	std::unique_ptr<MergeContext<T>[]> mergeContext(new MergeContext<T>[totalNumThreads]);
@@ -561,17 +556,19 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
         int numMerges = totalMerges >> 1;
         totalMerges = (totalMerges + 1) >> 1;
 
+		latch.Reset();
+		int jobCount = 0;
+
         for(int i = 0; i < totalMerges; ++i)
         {
             if(i < numMerges)
             {
                 // take the results of the previous iteration and create new merge contexts by merging 2 together.
-                mergeContext[i].m_workingFirst = true;
-                mergeContext[i].m_workingSecond = true;
                 mergeContext[i].m_buffer1 = mergeContext[i << 1].m_buffer1;
                 mergeContext[i].m_buffer2 = mergeContext[i << 1].m_buffer2;
                 mergeContext[i].m_right = mergeContext[i << 1].m_end;
                 mergeContext[i].m_end = mergeContext[i].m_right + mergeContext[(i << 1) + 1].m_end;
+				mergeContext[i].m_latch = &latch;
 
                 // submit 2 jobs for the merge context, each working from the other end of the list
                 {
@@ -579,6 +576,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
                     job.m_data = &mergeContext[i];
                     job.m_function = &MergeFirstJob<T>;
                     a_jobQueue.SubmitJob(job);
+					jobCount++;
                 }
                 if((i << 1) + 1 < a_jobQueue.NumThreads())
                 {
@@ -586,10 +584,12 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
                     job.m_data = &mergeContext[i];
                     job.m_function = &MergeSecondJob<T>;
                     a_jobQueue.SubmitJob(job);
+					jobCount++;
                 }
                 else
                 {
                     MergeSecondJob<T>(&mergeContext[i]);
+					jobCount++;
                 }
             }
             else
@@ -603,20 +603,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
         }
 
         // wait for all merging to be done
-        bool stillWorking = true;
-        do
-        {
-            stillWorking = false;
-            for(int i = 0; i < numMerges; ++i)
-            {
-                if(mergeContext[i].m_workingFirst || mergeContext[i].m_workingSecond)
-                {
-                    stillWorking = true;
-                    break;
-                }
-            }
-        }
-        while(stillWorking);
+		latch.Wait(jobCount);
     }
 
     // if the results are in the scratch buffer, copy them back into the input buffer

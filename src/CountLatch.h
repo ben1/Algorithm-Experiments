@@ -1,39 +1,35 @@
 #include <condition_variable>
 #include <mutex>
 
-
-class CountdownLatch
+// Any threads that called Wait(a_count) will be woken after a_count Notify() calls.
+class CountLatch
 {
 public:
 
-	// any threads that called Wait() will be woken after a_count Notify() calls.
-	CountdownLatch(int a_count)
-		: m_count(a_count)
+	CountLatch()
+		: m_count(0)
 	{
 	}
 
-	// releases any threads waiting, and resets the count 
-	void Reset(int a_count)
+	// releases any threads waiting, and resets the count of notifications
+	void Reset()
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_condition.notify_all();
-		m_count = a_count;
+		m_count = 0;
 	}
 
 	void Notify()
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
-		m_count--;
-		if (m_count == 0)
-		{
-			m_condition.notify_all();
-		}
+		m_count++;
+		m_condition.notify_all();
 	}
 
-	void Wait()
+	void Wait(int a_count)
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
-		while (m_count > 0)
+		while (m_count < a_count)
 		{
 			m_condition.wait(lock);
 		}

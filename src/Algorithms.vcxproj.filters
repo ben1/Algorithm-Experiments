@@ -10,7 +10,7 @@
     <ClInclude Include="ReverseWords.h" />
     <ClInclude Include="Cache.h" />
     <ClInclude Include="JobQueue.h" />
-    <ClInclude Include="CountdownLatch.h" />
+    <ClInclude Include="CountLatch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
