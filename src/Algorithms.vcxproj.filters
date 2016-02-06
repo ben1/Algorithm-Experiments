@@ -13,6 +13,9 @@
     <ClInclude Include="CountLatch.h" />
     <ClInclude Include="BigUInt.h" />
     <ClInclude Include="ConvertBase.h" />
+    <ClInclude Include="BinarySearchTree.h" />
+    <ClInclude Include="MemoryPoolChain.h" />
+    <ClInclude Include="MemoryChain.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -21,6 +24,9 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="JobQueue.cpp" />
     <ClCompile Include="BigUInt.cpp" />
+    <ClCompile Include="BinarySearchTree.cpp" />
+    <ClCompile Include="MemoryPoolChain.cpp" />
+    <ClCompile Include="MemoryChain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

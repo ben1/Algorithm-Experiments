@@ -5,3 +5,4 @@ Release
 *.sdf
 *.suo
 *.vcxproj.user
+*.VC.opendb

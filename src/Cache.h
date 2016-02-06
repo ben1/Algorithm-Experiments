@@ -1,6 +1,6 @@
 #pragma once
 
-#include <hash_map>
+#include <unordered_map>
 #include <list>
 
 
@@ -16,7 +16,7 @@ public:
 
 	inline bool get(const KEY& a_key, VALUE& a_value)
 	{
-		stdext::hash_map<KEY, Item>::iterator i = m_cache.find(a_key);
+		auto i = m_cache.find(a_key);
 		if (i == m_cache.end())
 		{
 			// not in cache
@@ -35,7 +35,7 @@ public:
 
 	inline void put(const KEY& a_key, const VALUE& a_value)
 	{
-		stdext::hash_map<KEY, Item>::iterator i = m_cache.find(a_key);
+		auto i = m_cache.find(a_key);
 		if (i == m_cache.end())
 		{
 			// inserting a new item, so reduce the size to one less than the limit
@@ -77,6 +77,6 @@ private:
 
 	std::size_t m_maxItems;
 	std::list<KEY> m_lru;
-	stdext::hash_map<KEY, Item> m_cache;
+	std::unordered_map<KEY, Item> m_cache;
 };
 

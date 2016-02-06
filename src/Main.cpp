@@ -5,11 +5,13 @@
 
 #include <memory>
 #include <stdlib.h>
+#include <stack>
 
 #ifdef _DEBUG
 #include <vld.h>
 #endif
 
+#include "BinarySearchTree.h"
 #include "ComputePrimes.h"
 #include "MergeSort.h"
 #include "Timer.h"
@@ -39,7 +41,116 @@ int _tmain(int argc, _TCHAR* argv[])
 {
     Timer timer;
     float ms;
-    printf("Starting tests...\n");
+	printf("Starting tests...\n");
+
+	// BINARY SEARCH TREE
+	{
+		typedef BinarySearchTree<int> BSTInt;
+		BSTInt tree;
+		tree.Insert(15);
+		tree.Insert(3);
+		tree.Insert(19);
+		tree.Insert(4);
+		tree.Insert(7);
+		tree.Insert(16);
+		tree.Insert(2);
+		BSTInt::Node* n = tree.GetRoot();
+		std::stack<BSTInt::Node*> stack;
+		while (n != 0)
+		{
+			// if we can go left, push the current node and go
+			if (n->m_left != 0)
+			{
+				stack.push(n);
+				n = n->m_left;
+			}
+			else
+			{
+				// can't go left, so print
+				printf(" %d", n->m_value);
+				while (!stack.empty() && n->m_right == 0)
+				{
+					n = stack.top();
+					stack.pop();
+
+					// the new value we popped is the next in order
+					printf(" %d", n->m_value);
+				}
+				n = n->m_right;
+			}
+		}
+
+		// link up each node's m_next pointer with the node to the right of it at the same depth in the tree.
+		for (int row = 0;; ++row)
+		{
+			// for each row of depth
+			int depth = 0;
+			BSTInt::Node* n = tree.GetRoot();
+
+			// structure for remembering unsearched left node paths
+			struct LastBranch { int m_depth; BSTInt::Node* m_node; };
+			std::stack<LastBranch> lastLeft;
+
+			// remember the right-most newly visited node at the desired depth
+			BSTInt::Node* lastRight = 0;
+
+			// now find the next node at the same level starting from the right
+			while (lastRight == 0 || !lastLeft.empty())
+			{
+				// if there is an unsearched left branch, try that
+				if (!lastLeft.empty())
+				{
+					n = lastLeft.top().m_node;
+					depth = lastLeft.top().m_depth;
+					lastLeft.pop();
+				}
+
+				// iterate down the tree to find the right-most node at the appropriate row.
+				while (depth < row)
+				{
+					// prefer right paths if possible
+					if (n->m_right != 0)
+					{
+						// save the last left branch we could have taken
+						if (n->m_left != 0)
+						{
+							lastLeft.push(LastBranch());
+							lastLeft.top().m_depth = depth + 1;
+							lastLeft.top().m_node = n->m_left;
+						}
+
+						n = n->m_right;
+					}
+					else if (n->m_left != 0)
+					{
+						n = n->m_left;
+					}
+					else
+					{
+						break;
+					}
+					++depth;
+				}
+				if (depth == row)
+				{
+					n->m_next = lastRight;
+					lastRight = n;
+				}
+				else if (lastLeft.empty() && lastRight == 0)
+				{
+					// there is no node at this row, so we've finished
+					break;
+				}
+			}
+			
+			// there was no node at this row, so we've finished
+			if (lastRight == 0 && lastLeft.empty())
+			{
+				break;
+			}
+		}
+		n = tree.GetRoot();
+	}
 
     // PRIME NUMBERS
     {
@@ -131,6 +242,8 @@ int _tmain(int argc, _TCHAR* argv[])
         printf("GetMostCommonLetter time %f ms\n", ms);
         printf("Letter is %c\n", commonLetter);
 
+		char sss[] = { "one two three four five" };
+		ReverseWords(sss);
         timer.Reset();
         ReverseWords(longString.get());
         ms = 1000.0f * timer.Time();
