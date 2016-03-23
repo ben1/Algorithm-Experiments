@@ -16,7 +16,6 @@
     <ClInclude Include="BinarySearchTree.h" />
     <ClInclude Include="MemoryPoolChain.h" />
     <ClInclude Include="MemoryChain.h" />
-    <ClInclude Include="ThinkTree.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
@@ -28,7 +27,6 @@
     <ClCompile Include="BinarySearchTree.cpp" />
     <ClCompile Include="MemoryPoolChain.cpp" />
     <ClCompile Include="MemoryChain.cpp" />
-    <ClCompile Include="ThinkTree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />

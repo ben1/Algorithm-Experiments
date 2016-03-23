@@ -12,7 +12,7 @@ bool ConvertBase(const std::string& a_decimal, std::string& a_hex)
 	BigUInt add;
 
 	// accumulate the binary result as we add each digit from the end of the decimal string to the beginning
-	for (int d = a_decimal.size() - 1; d >= 0; --d)
+	for (int d = (int)a_decimal.size() - 1; d >= 0; --d)
 	{
 		add = powTen;
 		uint32_t numeral = a_decimal[d] - '0';

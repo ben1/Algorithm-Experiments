@@ -11,9 +11,9 @@ void ReverseWords(char *a_string)
 		return;
 	}
 
-	int length = strlen(a_string);
+	size_t length = strlen(a_string);
 
-	for (int i = 0; i < length / 2; ++i)
+	for (uint32_t i = 0; i < length / 2; ++i)
 	{
 		std::swap(a_string[i], a_string[length - i - 1]);
 		//char temp = a_string[i];
@@ -21,17 +21,17 @@ void ReverseWords(char *a_string)
 		//a_string[length - 1 - i] = temp;
 	}
 
-	int wordStart = 0;
+    uint32_t wordStart = 0;
 	bool hasWord = false;
-	for (int i = 0; i < length; ++i)
+	for (uint32_t i = 0; i < length; ++i)
 	{
 		if (hasWord)
 		{
 			if (a_string[i] == ' ')
 			{
-				int wordLength = i - wordStart;
+                uint32_t wordLength = i - wordStart;
 				hasWord = false;
-				for (int w = wordStart; w < wordStart + (wordLength / 2); ++w)
+				for (uint32_t w = wordStart; w < wordStart + (wordLength / 2); ++w)
 				{
 					std::swap(a_string[w], a_string[i - (w - wordStart) - 1]);
 				}
@@ -48,7 +48,7 @@ void ReverseWords(char *a_string)
 	}
 	if (hasWord)
 	{
-		for (int w = wordStart; w < length; ++w)
+		for (uint32_t w = wordStart; w < length; ++w)
 		{
 			std::swap(a_string[w], a_string[length - (w - wordStart) - 1]);
 		}
@@ -82,26 +82,26 @@ void zReverseWords(char *a_string)
     {
         return;
     }
-    int len = strlen(a_string);
+    size_t len = strlen(a_string);
 
     // reverse the entire string
-    int halflen = len >> 1;
-    for(int i = 0; i < halflen; ++i)
+    size_t halflen = len >> 1;
+    for(size_t i = 0; i < halflen; ++i)
     {
         std::swap(a_string[i], a_string[len - i - 1]);
     }
 
     // Go through the string from the start looking for spaces to indicate the end of the current word. 
     // When one is found, reverse the characters in that word, and move on to the next word.
-    for(int i = 0; i < len; ++i)
+    for(uint32_t i = 0; i < len; ++i)
     {
-        int start = i;
+        uint32_t start = i;
         while(a_string[i] != ' ' && a_string[i] != 0)
         {
             ++i;
         }
-        int halfWordLen = (i - start) >> 1;
-        for(int x = 0; x < halfWordLen; ++x)
+        uint32_t halfWordLen = (i - start) >> 1;
+        for(uint32_t x = 0; x < halfWordLen; ++x)
         {
             std::swap(a_string[start + x], a_string[i - x - 1]);
         }

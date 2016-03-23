@@ -21,7 +21,6 @@
 #include "Cache.h"
 #include "ConvertBase.h"
 
-
 // function to verify the contents of an array are sorted in ascending order
 bool VerifyOrder(int* a_testData, int a_dataLength)
 {
@@ -37,8 +36,10 @@ bool VerifyOrder(int* a_testData, int a_dataLength)
 }
 
 
-int _tmain(int argc, _TCHAR* argv[])
-{
+
+
+int _tmain(int argc, _TCHAR* argv[]) {
+
     Timer timer;
     float ms;
 	printf("Starting tests...\n");
@@ -193,7 +194,7 @@ int _tmain(int argc, _TCHAR* argv[])
             timer.Reset();
             mergeSorter.SortMT(testData.get(), dataLength, jobScheduler);
             ms = 1000.0f * timer.Time();
-            printf("SortMT time (%d threads) %f ms\n", NUM_THREADS_FOR_SORTING, ms);
+            printf("SortMT time (%d threads) %f ms\n", (int)NUM_THREADS_FOR_SORTING, ms);
             bool success = VerifyOrder(testData.get(), dataLength);
             printf("SortMT %s\n", (success ? "success" : "FAIL"));
         }

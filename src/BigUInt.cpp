@@ -30,7 +30,7 @@ BigUInt& BigUInt::operator = (const BigUInt& a_uint)
 
 BigUInt& BigUInt::operator+=(const BigUInt& a_uint)
 {
-	uint32_t maxIndex = std::max(m_quads.size(), a_uint.m_quads.size());
+	uint32_t maxIndex = (uint32_t)std::max(m_quads.size(), a_uint.m_quads.size());
 
 	uint64_t carry = 0;
 	for (uint32_t i = 0; i < maxIndex; ++i)

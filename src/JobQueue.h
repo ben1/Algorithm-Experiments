@@ -29,7 +29,7 @@ public:
     // Multiple threads may call this
     void SubmitJob(const Job& a_job);
 
-    inline int NumThreads() const { return m_threads.size(); }
+    inline size_t NumThreads() const { return m_threads.size(); }
 
 private:
 

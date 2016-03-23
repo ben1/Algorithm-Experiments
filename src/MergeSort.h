@@ -55,7 +55,7 @@ public:
     bool SortSimple(T* a_input, int a_length);
 
     // The same as SortSimpleUnrolled() but is multithreaded.
-    bool SortMT(T* a_input, int a_length, JobQueue& a_jobQueue);
+    bool SortMT(T* a_input, uint32_t a_length, JobQueue& a_jobQueue);
 
 private:
 
@@ -484,12 +484,12 @@ void MergeSecondJob(void* a_context)
 
 
 template<class T>
-bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
+bool MergeSort<T>::SortMT(T* a_input, uint32_t a_length, JobQueue& a_jobQueue)
 {
 
     // use a single thread for small sorts
-    const int minItemsPerThread = 256;
-	int totalNumThreads = a_jobQueue.NumThreads() + 1; // including this thread
+    const uint32_t minItemsPerThread = 256;
+    uint32_t totalNumThreads = (uint32_t)a_jobQueue.NumThreads() + 1; // including this thread
     if(a_length < totalNumThreads * minItemsPerThread)
     {
         return SortUnrolledMemcpy(a_input, a_length);
@@ -506,14 +506,14 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
     T* buffer2 = m_scratchBuffer;
 
     // First divide the list into a number of lists equal to the number of threads and sort them.
-    int maxItemsPerThread = (a_length + totalNumThreads - 1) / totalNumThreads;
+    uint32_t maxItemsPerThread = (a_length + totalNumThreads - 1) / totalNumThreads;
     std::unique_ptr<SortContext<T>[]> sortContext(new SortContext<T>[totalNumThreads]);
 
 	CountLatch latch;
 
     // Dispatch work to threads
-    int itemsDispatched = 0;
-    for (int i = 0; i < totalNumThreads; ++i)
+    uint32_t itemsDispatched = 0;
+    for (uint32_t i = 0; i < totalNumThreads; ++i)
     {
         int itemsForThread = std::min(maxItemsPerThread, a_length - itemsDispatched);
 
@@ -541,7 +541,7 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
 
     // copy sorted contexts into merge contexts
 	std::unique_ptr<MergeContext<T>[]> mergeContext(new MergeContext<T>[totalNumThreads]);
-    for(int i = 0; i < totalNumThreads; ++i)
+    for(uint32_t i = 0; i < totalNumThreads; ++i)
     {
         mergeContext[i].m_buffer1 = sortContext[i].m_buffer1;
         mergeContext[i].m_buffer2 = sortContext[i].m_buffer2;
@@ -549,17 +549,17 @@ bool MergeSort<T>::SortMT(T* a_input, int a_length, JobQueue& a_jobQueue)
         mergeContext[i].m_end = sortContext[i].m_dataLength;
     }
 
-    int totalMerges = totalNumThreads;
+    uint32_t totalMerges = totalNumThreads;
     while(totalMerges > 1)
     {
         // there must be an even number of merges. Any left-over list can't be merged this iteration.
-        int numMerges = totalMerges >> 1;
+        uint32_t numMerges = totalMerges >> 1;
         totalMerges = (totalMerges + 1) >> 1;
 
 		latch.Reset();
-		int jobCount = 0;
+        uint32_t jobCount = 0;
 
-        for(int i = 0; i < totalMerges; ++i)
+        for(uint32_t i = 0; i < totalMerges; ++i)
         {
             if(i < numMerges)
             {
